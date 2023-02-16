@@ -1,66 +1,79 @@
 looker.plugins.visualizations.add({
-  create: function(element, config) {
+  // Id and Label are legacy properties that no longer have any function besides documenting
+  // what the visualization used to have. The properties are now set via the manifest
+  // form within the admin/visualizations page of Looker
+  id: "hello_world",
+  label: "Hello World",
+  options: {
+    font_size: {
+      type: "string",
+      label: "Font Size",
+      values: [
+        {"Large": "large"},
+        {"Small": "small"}
+      ],
+      display: "radio",
+      default: "large"
+    }
   },
+  // Set up the initial state of the visualization
+  create: function(element, config) {
+
+    // Insert a <style> tag with some styles we'll use later.
+    element.innerHTML = `
+      <style>
+        .hello-world-vis {
+          /* Vertical centering */
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          text-align: center;
+        }
+        .hello-world-text-large {
+          font-size: 72px;
+        }
+        .hello-world-text-small {
+          font-size: 18px;
+        }
+      </style>
+    `;
+
+    // Create a container element to let us center the text.
+    var container = element.appendChild(document.createElement("div"));
+    container.className = "hello-world-vis";
+
+    // Create an element to contain the text.
+    this._textElement = container.appendChild(document.createElement("div"));
+
+  },
+  // Render in response to the data or settings changing
   updateAsync: function(data, element, config, queryResponse, details, done) {
-    clicks_total = 0
 
-data.forEach((d)=>{
-  clicks_total += d["Spend"]
-})
-element.innerHTML = `
-     <style>
-.borderStyle{
-border: 1px solid #EAECF0;
-border-radius: 12px;
-padding-top: 26px;
-padding-left: 56px;
+    // Clear any errors from previous updates
+    this.clearErrors();
 
-}
-.componentOne {
-font-family: 'Inter';
-font-style: normal;
-font-weight: 500;
-font-size: 14px;
-}
-.componentTwo {
-font-family: 'SF Pro Display';
-font-style: normal;
-font-weight: 500;
-font-size: 32px;
-padding-top: 5px;
-padding-bottom: 5px;
-}
-.componentThree {
-font-family: 'SF Pro Text';
-font-style: normal;
-font-weight: 500;
-font-size: 14px;
-padding-bottom: 60px;
-}
-</style>
-</head>
-<body>
+    // Throw some errors and exit if the shape of the data isn't what this chart needs
+    if (queryResponse.fields.dimensions.length == 0) {
+      this.addError({title: "No Dimensions", message: "This chart requires dimensions."});
+      return;
+    }
 
+    // Grab the first cell of the data
+    var firstRow = data[0];
+    var firstCell = firstRow[queryResponse.fields.dimensions[0].name];
 
+    // Insert the data into the page
+    this._textElement.innerHTML = LookerCharts.Utils.htmlForCell(firstCell);
 
-<div class="borderStyle">
-<div class="componentOne">Spend</div>
-<div class="componentTwo">$ ${clicks_total} </div>
-<div class="componentThree">27.1% of budget cap $7500</div>
-<div class="componentOne">Projected Spend</div>
-<div class="componentTwo">$ 6245.55</div>
-<div class="componentThree">99.3% of budget cap $7500</div>
-</div>
-  `;
-    
-    //var firstRow = data[0];
-    //var firstCell = firstRow[queryResponse.fields.dimensions[0].name];
+    // Set the size to the user-selected size
+    if (config.font_size == "small") {
+      this._textElement.className = "hello-world-text-small";
+    } else {
+      this._textElement.className = "hello-world-text-large";
+    }
 
-    
-
-//element.innerHTML = clicks_total
-    
+    // We are done rendering! Let Looker know.
     done()
-
   }
-})
+});
